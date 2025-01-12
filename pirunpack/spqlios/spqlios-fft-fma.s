@@ -1,11 +1,12 @@
 	.file	"spqlios-fft-avx.s"
+	.intel_syntax noprefix
 	.section	.text.unlikely,"ax",@progbits
 .LCOLDB0:
 	.text
 .LHOTB0:
 	.p2align 4,,15
 	.globl	fft
-	.type	fft, @function
+#	.type	fft, @function
 fft:
 .LFB0:
 	.cfi_startproc
@@ -294,11 +295,9 @@ size4negation3: .double +1.0, -1.0, +1.0, -1.0 /* ymm12 */
 
 	.cfi_endproc
 .LFE0:
-	.size	fft, .-fft
+#	.size	fft, .-fft
 	.section	.text.unlikely
 .LCOLDE0:
 	.text
 .LHOTE0:
-	.ident	"GCC: (Ubuntu 5.2.1-22ubuntu2) 5.2.1 20151010"
-	.section	.note.GNU-stack,"",@progbits
 
