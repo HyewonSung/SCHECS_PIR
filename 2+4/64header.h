@@ -121,14 +121,10 @@ void tLwe64EncryptZero_debug(TLweSample64* cipher, const double stdev, const Glo
     const int N = env->N;
     const int k= env->k;
 
-    // 🔹 랜덤 노이즈 추가
+    //  랜덤 노이즈 추가
     for (int j = 0; j < N; ++j) 
         cipher->b->coefs[j] = 0; //random_gaussian64(0, stdev);
 
-    std::cout << "Initial Random Noise (e(X)): ";
-    for (int j = 0; j < 6; ++j) 
-        std::cout << cipher->b->coefs[j] << " ";
-    std::cout << "...\n";
 
     //  랜덤한 'a' 다항식 생성
     for (int i = 0; i < k; ++i) {
@@ -136,43 +132,22 @@ void tLwe64EncryptZero_debug(TLweSample64* cipher, const double stdev, const Glo
             cipher->a[i].coefs[j] = random_int64();
     }
 
-    std::cout << " Random Polynomial a[0]: ";
-    for (int j = 0; j < 6; ++j) 
-        std::cout << cipher->a[0].coefs[j] << " ";
-    std::cout << "...\n";
-
-    std::cout << "Secret key (s(X)): ";
-    for (int j = 0; j < 6; ++j) 
-        std::cout << &env->tlwekey->coefs[j] << " ";
-    std::cout << "...\n";
 
     //  (s * a) 연산 수행
     for (int i = 0; i < k; ++i) 
         torus64PolynomialMultAddKaratsuba_lvl2(cipher->b, &env->tlwekey[i], &cipher->a[i], env);
 
-    std::cout << "After Multiplication (a(x)*s(X)): ";
-    for (int j = 0; j < 6; ++j) 
-        std::cout << cipher->b->coefs[j] << " ";
-    std::cout << "...\n";
 }
 
 void tLwe64Encrypt_debug(TLweSample64* cipher, const Torus64Polynomial* mess, const double stdev, const Globals* env){
     const int N = env->N;
 
-     std::cout << "Encrypted message: ";
-    for (int j = 0; j < 6; ++j) 
-        std::cout << mess->coefs[j] << " ";
-    std::cout << "...\n";
 
     tLwe64EncryptZero_debug(cipher, stdev, env);
 
     for (int32_t j = 0; j < N; ++j)
         cipher->b->coefs[j] += mess->coefs[j];
 
-    std::cout << "Final Cipher b (after message addition): ";
-    for (int j = 0; j < 6; ++j) 
-        std::cout << cipher->b->coefs[j] << " ";
-    std::cout << "...\n";
 }
 
 void tLwe64Phase_lvl2(Torus64Polynomial* phase, const TLweSample64* cipher, const Globals* env){
@@ -183,49 +158,20 @@ void tLwe64Phase_lvl2(Torus64Polynomial* phase, const TLweSample64* cipher, cons
     for (int j = 0; j < N; ++j) {
         phase->coefs[j] = -cipher->b->coefs[j];
     }
-
-
-    std::cout << "1) phase Coefficients (-b): ";
-    for (int j = 0; j < 5; j++) {
-        std::cout << phase->coefs[j] << " ";
-    }
-    std::cout << std::endl;
        
-    
 
     for (int i = 0; i < k; ++i) {
         torus64PolynomialMultAddKaratsuba_lvl2(phase, &env->tlwekey[i], &cipher->a[i], env);
     }
 
-     std::cout << "s Coefficients : ";
-    for (int j = 0; j < 5; j++) {
-        std::cout << &env->tlwekey->coefs[j] << " ";
-    }
-    std::cout << std::endl;
-
-         std::cout << "a Coefficients : ";
-    for (int j = 0; j < 5; j++) {
-        std::cout << &cipher->a[0].coefs[j] << " ";
-    }
-    std::cout << std::endl;
-
-
-    std::cout << "2) phase Coefficients (-b+as): ";
-    for (int j = 0; j < 5; j++) {
-        std::cout << phase->coefs[j] << " ";
-    }
-    std::cout << std::endl;
 
     //and we negate the result
     for (int j = 0; j < N; ++j) {
         phase->coefs[j] = -phase->coefs[j];
     }
 
-        std::cout << "3) phase Coefficients (b-as): ";
-    for (int j = 0; j < 5; j++) {
-        std::cout << phase->coefs[j] << " ";
-    }
-    std::cout << std::endl;
+
+
 }
 /*
 void circuitPrivKS(TLweSampleFFTa* result, const int u, const LweSample64* x, const Globals* env) {
@@ -866,25 +812,6 @@ void CMuxFFTdb(TLweSampleFFTa *result, const TGswSampleFFTa *eps, const Torus64 
     //}
 }
 
-    void tGsw64Encrypt_poly_3(TGswSample64* cipher, const IntPolynomiala* mess, const double stdev, const Globals* env){
-    const int N = env->N;
-    const int l = env->l;
-    const int Bgbit = env->bgbit;
-    const int k = env->k;
-
-    for (int bloc = 0; bloc <= k; ++bloc) {
-        for (int i = 0; i < l; ++i) {
-            // Step 1: 암호화된 0 생성
-            tLwe64EncryptZero_debug(&cipher->samples[bloc][i], stdev, env);
- 
-
-            // Step 2: message * gadget vector h[i] 추가
-            for (int j = 0; j < env->N; ++j) { 
-                cipher->samples[bloc][i].a[1].coefs[j] += mess->coefs[j] * (UINT64_C(1) << (64 - (i + 1) * Bgbit));
-            }
-        }
-    }
-}
 
 
     void tGsw64Encrypt_poly(TGswSample64* cipher, const IntPolynomiala* mess, const double stdev, const Globals* env) {
@@ -942,7 +869,7 @@ void packing_algorithm2(TLweSample64* rlweResult, const TGswSample64** ksk, cons
     // Sample Exraction
     LweSample64* extract_result = new LweSample64(N);  // 🔹 extract_result 생성
     tLweExtractLweSampleIndex64(extract_result, rlweInput, index, env);
-    std::cout << "Sample Extraction Done" << std::endl;
+
 
 
     // a_poly 라는 이름의 다항식으로 복사
@@ -953,7 +880,7 @@ void packing_algorithm2(TLweSample64* rlweResult, const TGswSample64** ksk, cons
 
     // b_scalar 라는 이름의 변수로 복사
     Torus64 b_scalar = extract_result->a[N];  // a[N] 값을 b_scalar에 복사
-    std::cout << "a_poly, b_scalar done"<< std::endl;
+
 
     // decomposition of a scalars
     IntPolynomiala* decomp_a_scalars = new_array1<IntPolynomiala>(l, N);
@@ -981,7 +908,7 @@ void packing_algorithm2(TLweSample64* rlweResult, const TGswSample64** ksk, cons
             sum_result_b[i]->coefs[j] = 0;
         }
     }
-    std::cout << "temp_poly, sum_result generation done"<< std::endl;
+
 
     // for문 (N번 반복)
     for (int idx = 0; idx < N; ++idx) {
@@ -1010,7 +937,7 @@ void packing_algorithm2(TLweSample64* rlweResult, const TGswSample64** ksk, cons
             }
         }
     }
-    std::cout << "main for loop done"<< std::endl;
+
 
     // result의 a[0] 초기화
     for (int j = 0; j < N; ++j) {
@@ -1026,7 +953,7 @@ void packing_algorithm2(TLweSample64* rlweResult, const TGswSample64** ksk, cons
             rlweResult->a[1].coefs[j] -= sum_result_b[i]->coefs[j];
         }
     }
-    std::cout << "result done"<< std::endl;
+
 
     // result의 a[1]의 0번째 계수에 b_scalar 값 저장
     rlweResult->a[1].coefs[0] = b_scalar + rlweResult->a[1].coefs[0];
@@ -1080,7 +1007,7 @@ void KSKGen_RGSW(TGswSample64* ksk, const IntPolynomiala* info_sk, const Globals
         }
     }
 
-    std::cout << "Key switching key generation completed." << std::endl;
+
 }
 
 void KSKGen_RGSW_2_debug(TGswSample64* ksk, const IntPolynomiala* info_sk, const Globals* env) {
@@ -1090,65 +1017,35 @@ void KSKGen_RGSW_2_debug(TGswSample64* ksk, const IntPolynomiala* info_sk, const
     const int N = env->N;             // 다항식의 차수
     const double stdev = pow(2., -55); // 암호화에 사용되는 표준편차
 
-    // ✅ Step 1: gadget 벡터 설정 및 출력
     std::vector<uint64_t> gadget_vector(l);
-    std::cout << "🔹 gadget_vector: ";
     for (int i = 0; i < l; ++i) {
         gadget_vector[i] = (UINT64_C(1) << (64 - (i + 1) * Bgbit));
-        std::cout << gadget_vector[i] << " ";
     }
     std::cout << std::endl;
 
-    // ✅ Step 2: info_sk 값 출력
-    std::cout << "🔹 info_sk Coefficients: ";
-    for (int i = 0; i < 5; ++i) {
-        std::cout << info_sk->coefs[i] << " ";
-    }
-    std::cout << std::endl;
 
     // Key Switching Key 생성
     for (int i = 0; i < l; ++i) {  // 각 분해 레벨에 대해
 
-        // ✅ Step 3: ksk 초기 상태 확인
-        std::cout << "🔹 Generating ksk->samples[0][" << i << "]..." << std::endl;
-
-        // 🔹 Step 1: 랜덤 노이즈 추가 (b 초기화)
+      
         for (int j = 0; j < N; ++j) {
-            ksk->samples[0][i].b->coefs[j] = 0; //random_gaussian64(0, stdev);
+            ksk->samples[0][i].b->coefs[j] = random_gaussian64(0, stdev);
         }
 
-        std::cout << "   ksk noise: e(X) ";
-        for (int j = 0; j < 5; j++) std::cout << ksk->samples[0][i].b->coefs[j] << " ";
-        std::cout << std::endl;
-
-        // 🔹 Step 2: 랜덤한 a 다항식 생성
+        
         for (int j = 0; j < N; ++j) {
             ksk->samples[0][i].a[0].coefs[j] = random_int64();
         }
 
-        // 🔹 Step 3: secret key (env->tlwekey)와 a 다항식 곱셈
-        torus64PolynomialMultAddKaratsuba_lvl2(ksk->samples[0][i].b, env->tlwekey, &ksk->samples[0][i].a[0], env);
-        std::cout << "  a(X)*s(X) ";
-        for (int j = 0; j < 5; j++) std::cout << ksk->samples[0][i].b->coefs[j] << " ";
-        std::cout << std::endl;
+       
 
-
-        // 🔹 Step 4: gadget_vector를 사용하여 info_sk 값 추가 (a[1]에 적용)
         for (int j = 0; j < N; ++j) {
             ksk->samples[0][i].a[1].coefs[j] += info_sk->coefs[j] * gadget_vector[i];
      
         }
-
-         std::cout << "   final ksk a[0] (random values): ";
-        for (int j = 0; j < 5; j++) std::cout << ksk->samples[0][i].a[0].coefs[j] << " ";
-        std::cout << std::endl;
-
-        std::cout << "   final ksk a[1] = a(X)*s(X) + info_s(X)*g + e(X) ";
-        for (int j = 0; j < 5; j++) std::cout << ksk->samples[0][i].a[1].coefs[j] << " ";
-        std::cout << std::endl;
     }
 
-    //std::cout << "Key switching key generation completed." << std::endl;
+
 }
 
 
@@ -1185,6 +1082,7 @@ void unpacking_algorithm4(TGswSample64* result, const TLweSample64** rlweInputs,
     //std::cout << "Unpacking algorithm4 completed." << std::endl;
 }
 
+/*
 void unpacking_algorithm5(TGswSample64* result, const TLweSample64** rlweInputs, const TGswSample64* convk, const Globals* env) {
     // 환경 변수 가져오기
     const int l = env->l;            // 분해 단계의 개수
@@ -1237,11 +1135,11 @@ void unpacking_algorithm5(TGswSample64* result, const TLweSample64** rlweInputs,
 
     std::cout << "Unpacking algorithm5 completed." << std::endl;
 }
-
+*/
 
 
 void Alg3_XPowerShift(TLweSample64* result, const TLweSample64* input, int shift, const Globals* env) {
-    const int N = env->N;  // 다항식 차수 (예: 1024)
+    const int N = env->N;  
 
     for (int j = 0; j < N; ++j) {
         int new_index = (j * shift) % N;  // X^N = -1 반영하여 새로운 지수 계산
@@ -1253,7 +1151,7 @@ void Alg3_XPowerShift(TLweSample64* result, const TLweSample64* input, int shift
 }
 
 void Alg3_XPowerShift_sk(IntPolynomiala* result, const IntPolynomiala* input, int shift, const Globals* env) {
-    const int N = env->N;  // 다항식 차수 (예: 1024)
+    const int N = env->N; 
 
     for (int j = 0; j < N; ++j) {
         int new_index = (j * shift) % N;  // X^N = -1 반영하여 새로운 지수 계산
@@ -1264,7 +1162,7 @@ void Alg3_XPowerShift_sk(IntPolynomiala* result, const IntPolynomiala* input, in
 }
 
 void Alg3_XPowerShift_TorusPoly(Torus64Polynomial* result, const Torus64Polynomial* input, int shift, const Globals* env) {
-    const int N = env->N;  // 다항식 차수 (예: 1024)
+    const int N = env->N;  
 
     for (int j = 0; j < N; ++j) {
         int new_index = (j * shift) % N;  // X^N = -1 반영하여 새로운 지수 계산
@@ -1280,7 +1178,7 @@ void packing_algorithm3(TLweSample64* result, const TLweSample64* rlweInput, con
     const int l = env->l;
     const int logN = log2(N);
 
-    // 🔹 logN 개의 kskFFT 생성
+    // logN 개의 kskFFT 생성
     TGswSampleFFTa** kskFFT = new TGswSampleFFTa*[logN];
     for (int i = 0; i < logN; ++i) {
         kskFFT[i] = new TGswSampleFFTa(l, N);
@@ -1324,7 +1222,7 @@ void packing_algorithm3(TLweSample64* result, const TLweSample64* rlweInput, con
             IntPolynomial_ifft_lvl2(decompFFT_c_prime_a0 + p, decomp_c_prime_a0 + p, env); 
         }
 
-        // External product 수행 (🔹 iter에 따른 kskFFT 선택)
+        // External product 수행
         TLweSampleFFTa* accFFT = new TLweSampleFFTa(N);
 
         //accFFT initialization
@@ -1376,144 +1274,6 @@ void packing_algorithm3(TLweSample64* result, const TLweSample64* rlweInput, con
     delete[] kskFFT;
 
 }
-
-void packing_algorithm3_debug(TLweSample64* result, const TLweSample64* rlweInput, const TGswSample64** ksk, const Globals* env) {
-    const int k = env->k;
-    const int N = env->N;
-    const int l = env->l;
-    const int logN = log2(N);
-
-    std::cout << "🔹 Starting packing_algorithm3" << std::endl;
-
-    // 🔹 logN 개의 kskFFT 생성
-    TGswSampleFFTa** kskFFT = new TGswSampleFFTa*[logN];
-    for (int i = 0; i < logN; ++i) {
-        kskFFT[i] = new TGswSampleFFTa(l, N);
-        std::cout << "✅ kskFFT[" << i << "] allocated." << std::endl;
-        for (int p = 0; p < l; ++p) 
-            for (int q = 0; q <= k; ++q)
-                TorusPolynomial64_ifft_lvl2(&kskFFT[i]->allsamples[p].a[q], &ksk[i]->allsamples[p].a[q], env);
-    }
-
-    // 결과를 rlweInput으로 초기화
-    for (int i = 0; i <= k; ++i) {
-        for (int j = 0; j < N; ++j) {
-            result->a[i].coefs[j] = rlweInput->a[i].coefs[j];
-        }
-    }
-    std::cout << "✅ Result initialized with rlweInput" << std::endl;
-
-    for (int iter = 0; iter < logN; ++iter) {
-        int shift = (N / (1 << iter)) + 1;
-        std::cout << "🔹 Iteration: " << iter << ", Shift: " << shift << std::endl;
-
-        TLweSample64* c_prime = new TLweSample64(N);
-        Alg3_XPowerShift_modified(c_prime, result, shift, env);
-
-        // 🔹 Debug: c_prime 값 확인
-        std::cout << "✅ c_prime first 5 coefficients (a[0]): ";
-        for (int i = 0; i < 5; i++) std::cout << c_prime->a[0].coefs[i] << " ";
-        std::cout << std::endl;
-
-        // c_prime의 a[0], a[1]을 분리
-        Torus64Polynomial* c_prime_a0 = new Torus64Polynomial(N);
-        Torus64Polynomial* c_prime_a1 = new Torus64Polynomial(N);
-
-        for (int j = 0; j < N; ++j) {
-            c_prime_a0->coefs[j] = c_prime->a[0].coefs[j];
-            c_prime_a1->coefs[j] = c_prime->a[1].coefs[j];
-        }
-
-        // c_prime_a0, c_prime_a1을 decomp 형태로 변환
-        IntPolynomiala* decomp_c_prime_a0 = new_array1<IntPolynomiala>(l, N);
-        //IntPolynomiala* decomp_c_prime_a1 = new_array1<IntPolynomiala>(l, N);
-
-        tGswTorus64PolynomialDecompH(decomp_c_prime_a0, c_prime_a0, env);
-        //tGswTorus64PolynomialDecompH(decomp_c_prime_a1, c_prime_a0, env);
-
-        // 🔹 Debug: Decomposed values 확인
-        std::cout << "✅ Decomposed first 5 coefficients (c_prime_a0): ";
-        for (int i = 0; i < 5; i++) std::cout << decomp_c_prime_a0->coefs[i] << " ";
-        std::cout << std::endl;
-
-        // FFT 변환
-        LagrangeHalfCPolynomiala* decompFFT_c_prime_a0 = new_array1<LagrangeHalfCPolynomiala>(l, N);
-        //LagrangeHalfCPolynomiala* decompFFT_c_prime_a1 = new_array1<LagrangeHalfCPolynomiala>(l, N);
-
-        for (int p = 0; p < l; ++p) {
-            IntPolynomial_ifft_lvl2(decompFFT_c_prime_a0 + p, decomp_c_prime_a0 + p, env);
-            //IntPolynomial_ifft_lvl2(decompFFT_c_prime_a1 + p, decomp_c_prime_a1 + p, env);
-        }
-
-        // External product 수행 (🔹 iter에 따른 kskFFT 선택)
-        TLweSampleFFTa* accFFT = new TLweSampleFFTa(N);
-
-        //accFFT initialization
-        for(int q=0; q<=k; ++q) LagrangeHalfCPolynomialClear_lvl2(accFFT->a+q, env);
-
-        for (int p = 0; p < l; ++p) {
-            LagrangeHalfCPolynomialAddMul_lvl2(accFFT->a, decompFFT_c_prime_a0 + p, &kskFFT[iter]->allsamples[p].a[0], env);
-            LagrangeHalfCPolynomialAddMul_lvl2(accFFT->a + 1, decompFFT_c_prime_a0 + p, &kskFFT[iter]->allsamples[p].a[1], env);
-        }
-
-        
-        // Convert back from FFT domain
-        TLweSample64* acc = new TLweSample64(N);
-        for (int q = 0; q <= k; ++q)
-            TorusPolynomial64_fft_lvl2(acc->a + q, accFFT->a + q, env);
-
-        // 🔹 Debug: acc 변환 후 확인
-        std::cout << "✅ acc first 5 coefficients (a[0]): ";
-        for (int i = 0; i < 5; i++) std::cout << acc->a[0].coefs[i] << " ";
-        std::cout << std::endl;
-
-
-        // temp_result = 0 - acc for a, c_prime->b - acc for b
-        TLweSample64* temp_result = new TLweSample64(N);
-        for (int j = 0; j < N; ++j){
-            temp_result->a[0].coefs[j] = -acc->a[0].coefs[j];
-            temp_result->b->coefs[j] = c_prime_a1->coefs[j] - acc->b->coefs[j];
-        }
-
-        // 🔹 Debug: temp_result 변환 후 확인
-        std::cout << "✅ temp_result first 5 coefficients (a[0]): ";
-        for (int i = 0; i < 5; i++) std::cout << temp_result->a[0].coefs[i] << " ";
-        std::cout << std::endl;
-
-        // result = temp_result + result
-        for (int i = 0; i <= k; ++i)
-            for (int j = 0; j < N; ++j)
-                result->a[i].coefs[j] += temp_result->a[i].coefs[j];
-
-        // 🔹 Debug: Result 업데이트 후 확인
-        std::cout << "✅ Result after update first 5 coefficients: ";
-        for (int i = 0; i < 5; i++) std::cout << result->a[0].coefs[i] << " ";
-        std::cout << std::endl;
-
-        // 메모리 해제
-        delete_array1<IntPolynomiala>(decomp_c_prime_a0);
-        //delete_array1<IntPolynomiala>(decomp_c_prime_a1);
-        delete_array1<LagrangeHalfCPolynomiala>(decompFFT_c_prime_a0);
-        //delete_array1<LagrangeHalfCPolynomiala>(decompFFT_c_prime_a1);
-
-        delete accFFT;
-        delete acc;
-        delete temp_result;
-        delete c_prime_a0;
-        delete c_prime_a1;
-        delete c_prime;
-    }
-
-    // 🔹 logN 개의 kskFFT 해제
-    for (int i = 0; i < logN; ++i) {
-        delete kskFFT[i];
-    }
-    delete[] kskFFT;
-
-    std::cout << "✅ Algorithm 3 packing completed successfully!" << std::endl;
-}
-
-
 
 
 

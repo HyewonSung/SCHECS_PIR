@@ -1,5 +1,4 @@
-﻿
-#include <stdio.h>
+﻿#include <stdio.h>
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
@@ -80,7 +79,7 @@ int main(){
 //4.26e-13;//pow(2.,-55);
 
 
-  uint64_t n=1<<27; //DB
+  uint64_t n=1<<12; //DB size
   uint64_t pack=1; // data element size: 384 Byte
   uint64_t m=n/pack;
   
@@ -125,7 +124,7 @@ int main(){
 
 
 
-  int MM1=8;
+  int MM1=12;
   uint64_t MM=int64_t(1)<<MM1; //plaintext modulus : 2^12
 
   double log_2t=ceil(log(MM)/log(2));
@@ -159,7 +158,7 @@ int main(){
   int_to_bin_digit(index,log2m, bit);
 
 	for(uint32_t j=0;j<db;j++)
-	  data->coefs[j]=(int64_t(1)<<56)*(17*j*rand()%MM); // database as plaintext......?!?!?!?! with a little trick..........OMG!!!!
+	  data->coefs[j]=(int64_t(1)<<52)*(17*j*rand()%MM); // database as plaintext......?!?!?!?! with a little trick..........OMG!!!!
 
 
    Torus64Polynomial *indexdata= new Torus64Polynomial(N);
@@ -190,103 +189,128 @@ for (int i = 0; i < l; i++) {
     }
 }
 
-// Step 3: l개의 TLweSample64 암호문 동적 할당 (cipher)
-std::cout << "[Step 3] Encrypting messages into cipher..." << std::endl;
+// Step 3: l개의 Torus64Polynomial 동적 할당 (message_scaled_by_N)
+std::cout << "[Step 3] Scaling message coefficients by N..." << std::endl;
+Torus64Polynomial** message_scaled_by_N = new Torus64Polynomial*[l];
+for (int i = 0; i < l; i++) {
+    message_scaled_by_N[i] = new Torus64Polynomial(N);
+    for (int j = 0; j < N; j++) {
+        message_scaled_by_N[i]->coefs[j] = message[i]->coefs[j] / N; // N으로 나누기
+    }
+}
+
+// Step 4: l개의 TLweSample64 암호문 동적 할당 (cipher)
+std::cout << "[Step 4] Encrypting messages into cipher..." << std::endl;
 TLweSample64** cipher = new TLweSample64*[l];
 for (int i = 0; i < l; i++) {
     cipher[i] = new TLweSample64(N);
-    tLwe64Encrypt_debug(cipher[i], message[i], alpha1, env);
+    tLwe64Encrypt_debug(cipher[i], message_scaled_by_N[i], alpha1, env);
 }
 
-// Step 4: info_sk 생성 (N 개)
-std::cout << "[Step 4] Creating info_sk..." << std::endl;
-IntPolynomiala** info_sk = new IntPolynomiala*[N];
-for (int iter = 0; iter < N; ++iter) {
-    info_sk[iter] = new IntPolynomiala(N);
-    for (int j = 0; j < N; ++j) {
-        info_sk[iter]->coefs[j] = 0;
+// Step 5: rot_cipher 생성
+std::cout << "[Step 5] Creating rotated cipher array..." << std::endl;
+TLweSample64*** rot_cipher = new TLweSample64**[l];
+for (int i = 0; i < l; i++) {
+    rot_cipher[i] = new TLweSample64*[log2m];
+
+    rot_cipher[i][0] = new TLweSample64(*cipher[i]); 
+
+    for (int j = 1; j < log2m; j++) {
+        rot_cipher[i][j] = new TLweSample64(N);
+        left_shift_by_one(rot_cipher[i][j], rot_cipher[i][j - 1], N);
     }
-    info_sk[iter]->coefs[0] = env->tlwekey->coefs[iter];
 }
 
+// Step 6: info_sk 생성 (logN 개)
+    int logN = log2(N);
+    IntPolynomiala** info_sk = new IntPolynomiala*[logN];
 
-// Step 5: ksk 생성 (N 개)
-std::cout << "[Step 5] Generating key switching keys (ksk)..." << std::endl;
-TGswSample64** ksk = new TGswSample64*[N];
-for (int i = 0; i < N; i++) {
-    ksk[i] = new TGswSample64(env->l, N);
-    KSKGen_RGSW_2_debug(ksk[i], info_sk[i], env);
-}
+    for (int iter = 0; iter < logN; ++iter) {
+        int shift = (N / (1 << iter)) + 1;
+        info_sk[iter] = new IntPolynomiala(N);
+        Alg3_XPowerShift_sk(info_sk[iter], env->tlwekey, shift, env);
+    }
+    std::cout << "🔹 Shifted Secret Keys (info_sk) Created." << std::endl;
 
+// Step 7: ksk 생성 (logN 개)
+      TGswSample64** ksk = new TGswSample64*[logN];
+      
+      for (int i = 0; i < logN; i++) {
+          ksk[i] = new TGswSample64(env->l, N);
+          KSKGen_RGSW_2_debug(ksk[i], info_sk[i], env);
+      }
+      std::cout << "🔹 Key Switching Keys (ksk) Generated." << std::endl;
 
-// Step 6: cipher_prime 생성
-std::cout << "[Step 6] Running packing algorithm2..." << std::endl;
+// Step 8: cipher_prime 생성
+std::cout << "[Step 8] Packing rotated ciphers into cipher_prime..." << std::endl;
 TLweSample64*** cipher_prime = new TLweSample64**[l];
-auto start_total = std::chrono::high_resolution_clock::now();
 
-double total_time = 0.0;  // 전체 실행 시간 누적
+auto start_total = std::chrono::high_resolution_clock::now(); // 총 실행 시간 측정 시작
+
+double total_time = 0.0;  // 개별 실행 시간 누적
 int count = 0;             // 실행 횟수 카운트
 
 for (int i = 0; i < l; i++) {
     cipher_prime[i] = new TLweSample64*[log2m];
+
     for (int j = 0; j < log2m; j++) {
         cipher_prime[i][j] = new TLweSample64(N);
-        int32_t index = j;
 
-        // 실행 시간 측정
-        auto start = std::chrono::high_resolution_clock::now();
-        packing_algorithm2(cipher_prime[i][j], const_cast<const TGswSample64**>(ksk), cipher[i], index, env);
-        auto end = std::chrono::high_resolution_clock::now();
+        auto start = std::chrono::high_resolution_clock::now(); // 개별 실행 시간 측정 시작
+        packing_algorithm3(cipher_prime[i][j], rot_cipher[i][j], const_cast<const TGswSample64**>(ksk), env);
+        auto end = std::chrono::high_resolution_clock::now();   // 개별 실행 시간 측정 종료
 
-        // 개별 실행 시간 저장
         std::chrono::duration<double, std::milli> duration = end - start;
-        total_time += duration.count();  // 총 시간 누적
-        count++;                         // 실행 횟수 증가
+        total_time += duration.count();  // 실행 시간 누적
+        count++;  // 실행 횟수 증가
     }
 }
 
-auto end_total = std::chrono::high_resolution_clock::now();
+auto end_total = std::chrono::high_resolution_clock::now(); // 총 실행 시간 측정 종료
 std::chrono::duration<double, std::milli> total_duration = end_total - start_total;
 
 // 평균 시간 계산
 double avg_time = (count > 0) ? (total_time / count) : 0.0;
 
-std::cout << "Packing (Algorithm2) done." << std::endl;
+std::cout << "Packing (Algorithm3) done." << std::endl;
 std::cout << "Total execution time: " << total_duration.count() << " ms" << std::endl;
 std::cout << "Average execution time per packing: " << avg_time << " ms" << std::endl;
 
-// Step 7: minus_sk 생성
-std::cout << "[Step 7] Generating negative secret key..." << std::endl;
+// Step 9: minus_sk 생성
+std::cout << "[Step 9] Generating negative secret key..." << std::endl;
 IntPolynomiala* minus_sk = new IntPolynomiala(N);
 for (int i = 0; i < N; i++) {
     minus_sk->coefs[i] = -env->tlwekey->coefs[i];
 }
 
-// Step 8: convk 생성 및 암호화
-std::cout << "[Step 8] Encrypting convk..." << std::endl;
+// Step 10: convk 생성
+std::cout << "[Step 10] Encrypting convk..." << std::endl;
 TGswSample64* convk = new TGswSample64(l, N);
 tGsw64Encrypt_poly_2(convk, minus_sk, pow(2., -55), env);
 
-// Step 9: extract 생성 및 unpacking_algorithm4 실행
-std::cout << "[Step 9] Running unpacking_algorithm4...(RGSW ciphertexts)" << std::endl;
+// Step 11: extract 생성
+std::cout << "[Step 11] Running unpacking_algorithm4...(RGSW ciphertexts)" << std::endl;
 TGswSample64* extract = new_array1<TGswSample64>(log2m, l, N);
 TGswSampleFFTa* extFFT = new_array1<TGswSampleFFTa>(log2m, l, N);
 
+
 auto start0 = std::chrono::high_resolution_clock::now();
+
 for (int j = 0; j < log2m; j++) {
     TLweSample64** rlweInputs = new TLweSample64*[l];
     for (int i = 0; i < l; i++) {
         rlweInputs[i] = cipher_prime[i][j];
     }
+
     unpacking_algorithm4(&extract[j], const_cast<const TLweSample64**>(rlweInputs), convk, env);
+
     delete[] rlweInputs;
 }
-std::cout << "Unpacking (Algorithm4) done" << std::endl;
+    std::cout << "Unpacking (Algorithm4) done" << std::endl;
 
 auto end0 = std::chrono::high_resolution_clock::now();
 std::chrono::duration<double, std::milli> execution_time0 = end0 - start0;
 std::cout << "Query unpacking step takes: " << execution_time0.count() << " ms" << std::endl;
-
 
 // 메모리 해제
 /*
@@ -482,18 +506,7 @@ j=0;
   std::chrono::duration<double,std::milli> execution_time11 = end11-start11;
   std::cout <<" answer decode takes: "<< execution_time11.count()<<" ms "<<std::endl;
 	
-  // 🔹 decrypt와 indexdata의 처음 10개 coefficient 출력
-std::cout << "🔹 decrypt coefficients (first 10): ";
-for (int i = 0; i < 10; ++i) {
-    std::cout << decrypt->coefs[i] << " ";
-}
-std::cout << std::endl;
 
-std::cout << "🔹 indexdata coefficients (first 10): ";
-for (int i = 0; i < 10; ++i) {
-    std::cout << indexdata->coefs[i] << " ";
-}
-std::cout << std::endl;
 
   Torus64Polynomial *error = new Torus64Polynomial(N);
    

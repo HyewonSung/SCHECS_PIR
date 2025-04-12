@@ -344,9 +344,9 @@ class Globals {
       IntPolynomiala* tlwekey;
         int64_t* in_key;     
          //cloud keys
-  //     privKS
+       //privKS
         //TLweSampleFFTa**** privKS;
-        TLweSample64**** privKS;
+//        TLweSample64**** privKS;
 	//TLweSample64* temp;
        // TLweSampleFFTa* tlweFFT; 
 	// IntPolynomiala* decomp; 

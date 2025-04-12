@@ -40,7 +40,7 @@ void Karatsuba64_aux(Torus64* R, const int* A, const Torus64* B, const int size,
     //we split the polynomials in 2
     int* Atemp = (int*) buf; buf += h*sizeof(int);
     Torus64* Btemp = (Torus64*) buf; buf+= h*sizeof(Torus64);
-    Torus64* Rtemp = (Torus64*) buf; buf+= size*sizeof(Torus64); 
+    Torus64* Rtemp = (Torus64*) buf; buf+= size*sizeof(Torus64);
     //Note: in the above line, I have put size instead of sm1 so that buf remains aligned on a power of 2
 
     for (int i = 0; i < h; ++i) Atemp[i] = A[i] + A[h+i];
@@ -63,14 +63,14 @@ void torus64PolynomialMultKaratsuba_lvl2(Torus64Polynomial* result, const IntPol
     const int N2 = env->N;
     Torus64* R = new Torus64[2*N2-1];
     char* buf = new char[32*N2]; //that's large enough to store every tmp variables (2*2*N*8)
-    
-    // Karatsuba 
+
+    // Karatsuba
     Karatsuba64_aux(R, poly1->coefs, poly2->coefs, N2, buf);
 
     // reduction mod X^N+1
     for (int i = 0; i < N2-1; ++i) result->coefs[i] = R[i] - R[N2+i];
     result->coefs[N2-1] = R[N2-1];
-    
+
     delete[] R;
     delete[] buf;
 }
@@ -83,14 +83,14 @@ void torus64PolynomialMultAddKaratsuba_lvl2(Torus64Polynomial* result, const Int
     const int N2 = env->N;
     Torus64* R = new Torus64[2*N2-1];
     char* buf = new char[32*N2]; //that's large enough to store every tmp variables (2*2*N*8)
-    
-    // Karatsuba 
+
+    // Karatsuba
     Karatsuba64_aux(R, poly1->coefs, poly2->coefs, N2, buf);
 
     // reduction mod X^N+1
     for (int i = 0; i < N2-1; ++i) result->coefs[i] += R[i] - R[N2+i];
     result->coefs[N2-1] += R[N2-1];
-    
+
     delete[] R;
     delete[] buf;
 }
@@ -110,7 +110,7 @@ void tLwe64EncryptZero(TLweSample64* cipher, const double stdev, const Globals* 
 void tLwe64Encrypt(TLweSample64* cipher,const Torus64Polynomial* mess, const double stdev, const Globals* env){
     const int N = env->N;
     // const int k= env->k;
- 
+
    tLwe64EncryptZero(cipher, stdev, env);
 
     for (int32_t j = 0; j < N; ++j)
@@ -122,57 +122,49 @@ void tLwe64EncryptZero_debug(TLweSample64* cipher, const double stdev, const Glo
     const int k= env->k;
 
     // 🔹 랜덤 노이즈 추가
-    for (int j = 0; j < N; ++j) 
-        cipher->b->coefs[j] = 0; //random_gaussian64(0, stdev);
+    for (int j = 0; j < N; ++j)
+        cipher->b->coefs[j] = random_gaussian64(0, stdev);
 
-    std::cout << "Initial Random Noise (e(X)): ";
-    for (int j = 0; j < 6; ++j) 
-        std::cout << cipher->b->coefs[j] << " ";
-    std::cout << "...\n";
+    //std::cout << "Initial Random Noise (e(X)): ";
+    //for (int j = 0; j < 6; ++j)
+    //    std::cout << cipher->b->coefs[j] << " ";
+    //std::cout << "...\n";
 
     //  랜덤한 'a' 다항식 생성
     for (int i = 0; i < k; ++i) {
-        for (int j = 0; j < N; ++j) 
+        for (int j = 0; j < N; ++j)
             cipher->a[i].coefs[j] = random_int64();
     }
 
-    std::cout << " Random Polynomial a[0]: ";
-    for (int j = 0; j < 6; ++j) 
-        std::cout << cipher->a[0].coefs[j] << " ";
-    std::cout << "...\n";
+    //std::cout << " Random Polynomial a[0]: ";
+    //for (int j = 0; j < 6; ++j)
+    //    std::cout << cipher->a[0].coefs[j] << " ";
+    //std::cout << "...\n";
 
-    std::cout << "Secret key (s(X)): ";
-    for (int j = 0; j < 6; ++j) 
-        std::cout << &env->tlwekey->coefs[j] << " ";
-    std::cout << "...\n";
+    //std::cout << "Secret key (s(X)): ";
+    //for (int j = 0; j < 6; ++j)
+    //    std::cout << env->tlwekey->coefs[j] << " ";
+    //std::cout << "...\n";
 
     //  (s * a) 연산 수행
-    for (int i = 0; i < k; ++i) 
+    for (int i = 0; i < k; ++i)
         torus64PolynomialMultAddKaratsuba_lvl2(cipher->b, &env->tlwekey[i], &cipher->a[i], env);
 
-    std::cout << "After Multiplication (a(x)*s(X)): ";
-    for (int j = 0; j < 6; ++j) 
-        std::cout << cipher->b->coefs[j] << " ";
-    std::cout << "...\n";
+    //std::cout << "After Multiplication (a(x)*s(X)): ";
+    //for (int j = 0; j < 6; ++j)
+    //    std::cout << cipher->b->coefs[j] << " ";
+    //std::cout << "...\n";
 }
 
 void tLwe64Encrypt_debug(TLweSample64* cipher, const Torus64Polynomial* mess, const double stdev, const Globals* env){
     const int N = env->N;
 
-     std::cout << "Encrypted message: ";
-    for (int j = 0; j < 6; ++j) 
-        std::cout << mess->coefs[j] << " ";
-    std::cout << "...\n";
 
     tLwe64EncryptZero_debug(cipher, stdev, env);
 
     for (int32_t j = 0; j < N; ++j)
         cipher->b->coefs[j] += mess->coefs[j];
 
-    std::cout << "Final Cipher b (after message addition): ";
-    for (int j = 0; j < 6; ++j) 
-        std::cout << cipher->b->coefs[j] << " ";
-    std::cout << "...\n";
 }
 
 void tLwe64Phase_lvl2(Torus64Polynomial* phase, const TLweSample64* cipher, const Globals* env){
@@ -185,47 +177,17 @@ void tLwe64Phase_lvl2(Torus64Polynomial* phase, const TLweSample64* cipher, cons
     }
 
 
-    std::cout << "1) phase Coefficients (-b): ";
-    for (int j = 0; j < 5; j++) {
-        std::cout << phase->coefs[j] << " ";
-    }
-    std::cout << std::endl;
-       
-    
 
     for (int i = 0; i < k; ++i) {
         torus64PolynomialMultAddKaratsuba_lvl2(phase, &env->tlwekey[i], &cipher->a[i], env);
     }
 
-     std::cout << "s Coefficients : ";
-    for (int j = 0; j < 5; j++) {
-        std::cout << &env->tlwekey->coefs[j] << " ";
-    }
-    std::cout << std::endl;
-
-         std::cout << "a Coefficients : ";
-    for (int j = 0; j < 5; j++) {
-        std::cout << &cipher->a[0].coefs[j] << " ";
-    }
-    std::cout << std::endl;
-
-
-    std::cout << "2) phase Coefficients (-b+as): ";
-    for (int j = 0; j < 5; j++) {
-        std::cout << phase->coefs[j] << " ";
-    }
-    std::cout << std::endl;
 
     //and we negate the result
     for (int j = 0; j < N; ++j) {
         phase->coefs[j] = -phase->coefs[j];
     }
 
-        std::cout << "3) phase Coefficients (b-as): ";
-    for (int j = 0; j < 5; j++) {
-        std::cout << phase->coefs[j] << " ";
-    }
-    std::cout << std::endl;
 }
 /*
 void circuitPrivKS(TLweSampleFFTa* result, const int u, const LweSample64* x, const Globals* env) {
@@ -247,14 +209,14 @@ void circuitPrivKS(TLweSampleFFTa* result, const int u, const LweSample64* x, co
     // Private Key Switching
     for (int i = 0; i <= N; ++i) {
         const uint64_t aibar = x->a[i] + prec_offset;
-	
+
         for (int j = 0; j < kslen; ++j) {
             const uint64_t aij = (aibar>>(64-(j+1)*basebit)) & mask;
 
             if (aij != 0){
                 for (int q = 0; q <= k; ++q) {
-			for(int p=0;p<N;++p){
-	result->a[q].values[p] -= env->privKS[u][i][j][aij].a[q].values[p]; }                   
+                        for(int p=0;p<N;++p){
+        result->a[q].values[p] -= env->privKS[u][i][j][aij].a[q].values[p]; }
 
 //result->a[q].coefs[p] -= env->privKS[u][i][j][aij].a[q].coefs[p];
                 }
@@ -285,14 +247,14 @@ void circuitPrivKS(TLweSample64* result, const int u, const LweSample64* x, cons
     // Private Key Switching
     for (int i = 0; i <= N; ++i) {
         const uint64_t aibar = x->a[i] + prec_offset;
-	
+
         for (int j = 0; j < kslen; ++j) {
             const uint64_t aij = (aibar>>(64-(j+1)*basebit)) & mask;
 
             if (aij != 0){
                 for (int q = 0; q <= k; ++q) {
-			for(int p=0;p<N;++p){
-	//result->a[q].values[p] -= env->privKS[u][i][j][aij].a[q].values[p]; }                   
+                        for(int p=0;p<N;++p){
+        //result->a[q].values[p] -= env->privKS[u][i][j][aij].a[q].values[p]; }
 
 result->a[q].coefs[p] -= env->privKS[u][i][j][aij].a[q].coefs[p];}
                 }
@@ -319,17 +281,17 @@ void delete_LagrangeHalfCPolynomial_array(int nbelts, LagrangeHalfCPolynomiala* 
 void IntPolynomial_ifft_lvl2(LagrangeHalfCPolynomiala* result, const IntPolynomiala* source, const Globals* env) {
     assert(env->N==2048);
     fftp2048.execute_reverse_int(result->values, source->coefs);
-} 
+}
 
 
 void LagrangeHalfCPolynomialClear_lvl2(LagrangeHalfCPolynomiala* result, const Globals* env) {
-    const int N = env->N;    
-    for (int i=0; i<N; i++) 
+    const int N = env->N;
+    for (int i=0; i<N; i++)
     result->values[i] = 0;
 }
 void LagrangeHalfCPolynomialAddTo_lvl2(LagrangeHalfCPolynomiala* result, const LagrangeHalfCPolynomiala* a, const Globals* env) {
     const int N = env->N;
-       
+
     for (int i=0; i<N; i++) {
         double ra = a->values[i];
        // double ia = a->values[Ns2+i];
@@ -338,12 +300,12 @@ void LagrangeHalfCPolynomialAddTo_lvl2(LagrangeHalfCPolynomiala* result, const L
         result->values[i] += ra;
        // result->values[i+Ns2] += ra+ia;
     }
-   
+
    // LagrangeHalfCPolynomialAddTo(result->values, a->values, Ns2);
 }
 void LagrangeHalfCPolynomialSubTo_lvl2(LagrangeHalfCPolynomiala* result, const LagrangeHalfCPolynomiala* a, const Globals* env) {
     const int N = env->N;
-       
+
     for (int i=0; i<N; i++) {
         double ra = a->values[i];
        // double ia = a->values[Ns2+i];
@@ -352,12 +314,12 @@ void LagrangeHalfCPolynomialSubTo_lvl2(LagrangeHalfCPolynomiala* result, const L
         result->values[i] -= ra;
        // result->values[i+Ns2] += ra+ia;
     }
-   
+
    // LagrangeHalfCPolynomialAddTo(result->values, a->values, Ns2);
 }
 void LagrangeHalfCPolynomialAddMul_lvl2(LagrangeHalfCPolynomiala* result, const LagrangeHalfCPolynomiala* a, const LagrangeHalfCPolynomiala* b, const Globals* env) {
     const int Ns2 = env->N/2;
-    /*    
+    /*
     for (int i=0; i<Ns2; i++) {
         double ra = a->values[i];
         double ia = a->values[Ns2+i];
@@ -373,7 +335,7 @@ void LagrangeHalfCPolynomialAddMul_lvl2(LagrangeHalfCPolynomiala* result, const 
 void TorusPolynomial64_fft_lvl2(Torus64Polynomial* result, const LagrangeHalfCPolynomiala* source, const Globals* env) {
     assert(env->N==2048);
     fftp2048.execute_direct_torus64(result->coefs, source->values);
-} 
+}
 
 void TorusPolynomial64_ifft_lvl2(LagrangeHalfCPolynomiala* result, const Torus64Polynomial* source, const Globals* env) {
     assert(env->N==2048);
@@ -386,7 +348,7 @@ void TorusPolynomial64_ifft_lvl2(LagrangeHalfCPolynomiala* result, const Torus64
 void IntPolynomial_ifft_lvl2(LagrangeHalfCPolynomiala* result, const IntPolynomiala* source, const Globals* env) {
     assert(env->N==2048);
     result->setIntPoly(source, 2048);
-} 
+}
 
 
 void LagrangeHalfCPolynomialClear_lvl2(LagrangeHalfCPolynomiala* result, const Globals* env) {
@@ -399,14 +361,14 @@ void LagrangeHalfCPolynomialAddMul_lvl2(LagrangeHalfCPolynomiala* result, const 
     assert(result->torus64Poly!=0);
 assert(a->intPoly!=0);
     assert(b->torus64Poly!=0);
-    torus64PolynomialMultAddKaratsuba_lvl2(result->torus64Poly, a->intPoly, b->torus64Poly, env); 
+    torus64PolynomialMultAddKaratsuba_lvl2(result->torus64Poly, a->intPoly, b->torus64Poly, env);
 }
 
 void TorusPolynomial64_fft_lvl2(Torus64Polynomial* result, const LagrangeHalfCPolynomiala* source, const Globals* env) {
     assert(env->N==2048);
     assert(source->torus64Poly!=0);
     for (int i=0; i<2048; i++) result->coefs[i]=source->torus64Poly->coefs[i];
-} 
+}
 
 void TorusPolynomial64_ifft_lvl2(LagrangeHalfCPolynomiala* result, const Torus64Polynomial* source, const Globals* env) {
     assert(env->N==2048);
@@ -433,27 +395,27 @@ void tLwe64NoiselessTrivial(TLweSample64* cipher, const Torus64Polynomial* mess,
 
 void int_to_bin_digit(unsigned int in, int count, int64_t* out)
 {
-	unsigned int mask =1U << (count-1);
-	        int k;
-			for (k=0;k< count; k++){
-				                out[k]=(in & mask) ? 1 : 0;
-							               in <<=1;
+        unsigned int mask =1U << (count-1);
+                int k;
+                        for (k=0;k< count; k++){
+                                                out[k]=(in & mask) ? 1 : 0;
+                                                                       in <<=1;
 
 
-										        }
+                                                                                        }
 
 }
 
 void tGswTorus64PolynomialDecompH(IntPolynomiala* result, const Torus64Polynomial* sample, const Globals* env){
-	    const int N = env->N;
-	    const int l = env->l;
-	    const int Bgbit = env->bgbit;
-	    // peut etre tout cela dans le env
-	    const uint64_t Bg = UINT64_C(1)<<Bgbit;
-	    const uint64_t mask = Bg-1;
-	    const int64_t halfBg = Bg/2;
-	    uint64_t* buf = env->torusDecompBuf;
-	    const uint64_t offset = env->torusDecompOffset;
+            const int N = env->N;
+            const int l = env->l;
+            const int Bgbit = env->bgbit;
+            // peut etre tout cela dans le env
+            const uint64_t Bg = UINT64_C(1)<<Bgbit;
+            const uint64_t mask = Bg-1;
+            const int64_t halfBg = Bg/2;
+            uint64_t* buf = env->torusDecompBuf;
+            const uint64_t offset = env->torusDecompOffset;
 
     //First, add offset to everyone
     for (int j = 0; j < N; ++j) buf[j]=sample->coefs[j]+offset;
@@ -461,7 +423,7 @@ void tGswTorus64PolynomialDecompH(IntPolynomiala* result, const Torus64Polynomia
     //then, do the decomposition (in parallel)
     for (int p = 0; p < l; ++p) {
         const int decal = (64-(p+1)*Bgbit);
-	 int* res_p = result[p].coefs; // res is a int (ok 32)
+         int* res_p = result[p].coefs; // res is a int (ok 32)
         for (int j = 0; j < N; ++j) {
             uint64_t temp1 = (buf[j] >> decal) & mask;
             res_p[j] = temp1 - halfBg;
@@ -469,13 +431,13 @@ void tGswTorus64PolynomialDecompH(IntPolynomiala* result, const Torus64Polynomia
     }
 }
 
-	void tGsw64DecompH(IntPolynomiala* result, const TLweSample64* sample, const Globals* env){
+        void tGsw64DecompH(IntPolynomiala* result, const TLweSample64* sample, const Globals* env){
     const int l = env->l;
     const int k=env->k;
     for (int i = 0; i <= k; ++i) tGswTorus64PolynomialDecompH(result+(i*l), &sample->a[i], env);
 }
 
-	void tGswExternMulToTLwe1(TLweSample64 *accum, const TGswSample64 *sample, const Globals *env) {
+        void tGswExternMulToTLwe1(TLweSample64 *accum, const TGswSample64 *sample, const Globals *env) {
 
     const int32_t N = env->N;
     const int32_t k= env->k;
@@ -502,38 +464,38 @@ void tGswTorus64PolynomialDecompH(IntPolynomiala* result, const Torus64Polynomia
 }
 
 
-	void CMux(TLweSample64 *result, const TGswSample64 *eps, const TLweSample64 *c0, TLweSample64 *c1, const Globals* env){
+        void CMux(TLweSample64 *result, const TGswSample64 *eps, const TLweSample64 *c0, TLweSample64 *c1, const Globals* env){
 
-	const int l=env->l;
+        const int l=env->l;
         const int N = env->N;
         const int k= env->k;
         const int kpl=(k+1)*l;
 
-	 IntPolynomiala* decomp = new_array1<IntPolynomiala>(kpl,N);
-	 LagrangeHalfCPolynomiala* decompFFT = new_array1<LagrangeHalfCPolynomiala>(kpl,N); Torus64Polynomial* phase = new Torus64Polynomial(N);
+         IntPolynomiala* decomp = new_array1<IntPolynomiala>(kpl,N);
+         LagrangeHalfCPolynomiala* decompFFT = new_array1<LagrangeHalfCPolynomiala>(kpl,N); Torus64Polynomial* phase = new Torus64Polynomial(N);
 
-	 TLweSampleFFTa* accFFT = new TLweSampleFFTa(N);
-	 TGswSampleFFTa* epsFFT= new TGswSampleFFTa(l,N);
+         TLweSampleFFTa* accFFT = new TLweSampleFFTa(N);
+         TGswSampleFFTa* epsFFT= new TGswSampleFFTa(l,N);
 
-	 for (int i=0;i<kpl;i++)
-   		for (int q=0;q<=k;q++)
- 		  TorusPolynomial64_ifft_lvl2(&epsFFT->allsamples[i].a[q],&eps->allsamples[i].a[q],  env);
+         for (int i=0;i<kpl;i++)
+                for (int q=0;q<=k;q++)
+                  TorusPolynomial64_ifft_lvl2(&epsFFT->allsamples[i].a[q],&eps->allsamples[i].a[q],  env);
 
- //	tLweSubTo(c1,c0, params2);//c1=c1-c0
-	 for (int q = 0; q <= k; ++q)
-	 for (int j = 0; j < N; ++j) c1->a[q].coefs[j] -= c0->a[q].coefs[j];
+ //     tLweSubTo(c1,c0, params2);//c1=c1-c0
+         for (int q = 0; q <= k; ++q)
+         for (int j = 0; j < N; ++j) c1->a[q].coefs[j] -= c0->a[q].coefs[j];
 
  //tGswFFTExternMulToTLwe(c1, eps, params1);//c1=c1*eps
 
-	tGsw64DecompH(decomp, c1, env);
-	for (int p = 0; p < kpl; ++p) IntPolynomial_ifft_lvl2(decompFFT+p,decomp+p, env);
+        tGsw64DecompH(decomp, c1, env);
+        for (int p = 0; p < kpl; ++p) IntPolynomial_ifft_lvl2(decompFFT+p,decomp+p, env);
         // accFFT initialization
-	for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialClear_lvl2(accFFT->a+q, env);
+        for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialClear_lvl2(accFFT->a+q, env);
 
         // external product FFT
-auto start = std::chrono::high_resolution_clock::now();       
-	 for (int p = 0; p < kpl; ++p)
-	  for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialAddMul_lvl2(accFFT->a+q, decompFFT+p, &epsFFT->allsamples[p].a[q], env);
+auto start = std::chrono::high_resolution_clock::now();
+         for (int p = 0; p < kpl; ++p)
+          for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialAddMul_lvl2(accFFT->a+q, decompFFT+p, &epsFFT->allsamples[p].a[q], env);
 
 auto end = std::chrono::high_resolution_clock::now();
 std::chrono::duration<double,std::milli> execution_time = end-start;
@@ -545,10 +507,10 @@ std::cout <<"one external product w/o conversion from FFT: " << execution_time.c
 
 //       tLweAddTo(c1, c0, params2);//c1=c1+c0
 
-	for (int q = 0; q <= k; ++q)
-   	  for (int j = 0; j < N; ++j) c1->a[q].coefs[j] += c0->a[q].coefs[j];
+        for (int q = 0; q <= k; ++q)
+          for (int j = 0; j < N; ++j) c1->a[q].coefs[j] += c0->a[q].coefs[j];
 for (int q = 0; q <= k; ++q)
-   	  for (int j = 0; j < N; ++j) result->a[q].coefs[j] = c1->a[q].coefs[j];
+          for (int j = 0; j < N; ++j) result->a[q].coefs[j] = c1->a[q].coefs[j];
 
 }
 
@@ -556,248 +518,246 @@ for (int q = 0; q <= k; ++q)
 
 void CMuxFFT(TLweSample64 *result, const TGswSampleFFTa *eps, const TLweSample64 *c0, TLweSample64 *c1, const Globals* env){
 
-	const int l=env->l;
+        const int l=env->l;
         const int N = env->N;
         const int k= env->k;
         const int kpl=(k+1)*l;
 
-	IntPolynomiala* decomp = new_array1<IntPolynomiala>(kpl,N);
-	 LagrangeHalfCPolynomiala* decompFFT = new_array1<LagrangeHalfCPolynomiala>(kpl,N);
-	TLweSampleFFTa* accFFT= new TLweSampleFFTa(N);
-
-
-   
+        IntPolynomiala* decomp = new_array1<IntPolynomiala>(kpl,N);
+         LagrangeHalfCPolynomiala* decompFFT = new_array1<LagrangeHalfCPolynomiala>(kpl,N);
+        TLweSampleFFTa* accFFT= new TLweSampleFFTa(N);
 
 
 
- 	for (int q = 0; q <= k; ++q)
-	 for (int j = 0; j < N; ++j) c1->a[q].coefs[j] -= c0->a[q].coefs[j];
 
 
 
-	tGsw64DecompH(decomp, c1, env);
-
-
-	for (int p = 0; p < kpl; ++p) 
-
-	IntPolynomial_ifft_lvl2(decompFFT+p,decomp+p, env);
+        for (int q = 0; q <= k; ++q)
+         for (int j = 0; j < N; ++j) c1->a[q].coefs[j] -= c0->a[q].coefs[j];
 
 
 
-  
+        tGsw64DecompH(decomp, c1, env);
+
+
+        for (int p = 0; p < kpl; ++p)
+
+        IntPolynomial_ifft_lvl2(decompFFT+p,decomp+p, env);
+
+
+
+
         // external product FFT
 
 
-	 for (int p = 0; p < kpl; ++p)
-	  for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialAddMul_lvl2(accFFT->a+q, decompFFT+p, &eps->allsamples[p].a[q], env);
+         for (int p = 0; p < kpl; ++p)
+          for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialAddMul_lvl2(accFFT->a+q, decompFFT+p, &eps->allsamples[p].a[q], env);
 
 
         // conversion from FFT
-  
+
      for (int q = 0; q <= k; ++q) TorusPolynomial64_fft_lvl2(c1->a+q,accFFT->a+q, env);
 
 
 
-	for (int q = 0; q <= k; ++q)
-   	  for (int j = 0; j < N; ++j) c1->a[q].coefs[j] += c0->a[q].coefs[j];
+        for (int q = 0; q <= k; ++q)
+          for (int j = 0; j < N; ++j) c1->a[q].coefs[j] += c0->a[q].coefs[j];
 
 
-	for (int q = 0; q <= k; ++q)
-   	  for (int j = 0; j < N; ++j) result->a[q].coefs[j] = c1->a[q].coefs[j];
+        for (int q = 0; q <= k; ++q)
+          for (int j = 0; j < N; ++j) result->a[q].coefs[j] = c1->a[q].coefs[j];
 
-	delete_array1<IntPolynomiala>(decomp);
-	delete_array1<LagrangeHalfCPolynomiala>(decompFFT);
-	delete accFFT;
+        delete_array1<IntPolynomiala>(decomp);
+        delete_array1<LagrangeHalfCPolynomiala>(decompFFT);
+        delete accFFT;
 
 
 
 }
 void CMuxFFTdb(TLweSampleFFTa *result, const TGswSampleFFTa *eps, const Torus64 c0, const Torus64 c1, const Globals* env){
 
-	const int l=env->l;
+        const int l=env->l;
         const int N = env->N;
         const int k= env->k;
         const int kpl=(k+1)*l;
 
-	IntPolynomiala* decomp = new_array1<IntPolynomiala>(kpl,N);
-	 LagrangeHalfCPolynomiala* decompFFT = new_array1<LagrangeHalfCPolynomiala>(kpl,N);
-	TLweSampleFFTa* accFFT= new TLweSampleFFTa(N);
-	TLweSampleFFTa* tempFFT= new TLweSampleFFTa(N);
-	TLweSample64 *temp = new TLweSample64(N);
-	Torus64 cn= 0;
-    	for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialClear_lvl2(accFFT->a+q, env);
- 
+        IntPolynomiala* decomp = new_array1<IntPolynomiala>(kpl,N);
+         LagrangeHalfCPolynomiala* decompFFT = new_array1<LagrangeHalfCPolynomiala>(kpl,N);
+        TLweSampleFFTa* accFFT= new TLweSampleFFTa(N);
+        TLweSampleFFTa* tempFFT= new TLweSampleFFTa(N);
+        TLweSample64 *temp = new TLweSample64(N);
+        Torus64 cn= 0;
+        for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialClear_lvl2(accFFT->a+q, env);
+
         for (int j = 0; j < N; ++j) {
-	        temp->a[0].coefs[j]=0;      
-		temp->a[1].coefs[j] =0;
-	 
-	                              }
+                temp->a[0].coefs[j]=0;
+                temp->a[1].coefs[j] =0;
+
+                                      }
            temp->a[1].coefs[0]=c0;// Set data c0 as a noiseless TRLWE sample
 
-        for (int q = 0; q <= k; ++q) 
+        for (int q = 0; q <= k; ++q)
 
-	TorusPolynomial64_ifft_lvl2(tempFFT->a+q,temp->a+q, env);// convert noiseless TRLWE sample c0 to fft form
-
-
-
- 
-	 cn= c1-c0;//c1=c1-c0;
-
-        
-	 for (int j = 0; j < N; ++j) 	             
-		temp->a[1].coefs[0] =cn; 
-	                              
-	
-	tGsw64DecompH(decomp, temp , env);
-
-
-	for (int p = 0; p < kpl; ++p) 
-
-	IntPolynomial_ifft_lvl2(decompFFT+p,decomp+p, env);
+        TorusPolynomial64_ifft_lvl2(tempFFT->a+q,temp->a+q, env);// convert noiseless TRLWE sample c0 to fft form
 
 
 
-  
+
+         cn= c1-c0;//c1=c1-c0;
+
+
+         for (int j = 0; j < N; ++j)
+                temp->a[1].coefs[0] =cn;
+
+
+        tGsw64DecompH(decomp, temp , env);
+
+
+        for (int p = 0; p < kpl; ++p)
+
+        IntPolynomial_ifft_lvl2(decompFFT+p,decomp+p, env);
+
+
+
+
         // external product FFT
 
 
-	 for (int p = 0; p < kpl; ++p)
-	  for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialAddMul_lvl2(accFFT->a+q, decompFFT+p, &eps->allsamples[p].a[q], env);
+         for (int p = 0; p < kpl; ++p)
+          for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialAddMul_lvl2(accFFT->a+q, decompFFT+p, &eps->allsamples[p].a[q], env);
 
 
         // conversion from FFT
-  
+
    for (int q = k; q <= k; ++q) LagrangeHalfCPolynomialAddTo_lvl2(accFFT->a+q,tempFFT->a+q, env); //c1=c1+c0
 
 
-	for (int q = 0; q <= k; ++q)
-   	  for (int j = 0; j < N; ++j) result->a[q].values[j] = accFFT->a[q].values[j];
+        for (int q = 0; q <= k; ++q)
+          for (int j = 0; j < N; ++j) result->a[q].values[j] = accFFT->a[q].values[j];
 
 
-	delete_array1<IntPolynomiala>(decomp);
-	delete_array1<LagrangeHalfCPolynomiala>(decompFFT);
-	delete accFFT;
-	delete tempFFT;
-	delete temp;
+        delete_array1<IntPolynomiala>(decomp);
+        delete_array1<LagrangeHalfCPolynomiala>(decompFFT);
+        delete accFFT;
+        delete tempFFT;
+        delete temp;
 
 
 }
 
 
-	void CMuxFFTa(TLweSampleFFTa *result, const TGswSampleFFTa *eps, const TLweSampleFFTa *c0, TLweSampleFFTa *c1, const Globals* env){
+        void CMuxFFTa(TLweSampleFFTa *result, const TGswSampleFFTa *eps, const TLweSampleFFTa *c0, TLweSampleFFTa *c1, const Globals* env){
 
-	const int l=env->l;
+        const int l=env->l;
         const int N = env->N;
         const int k= env->k;
         const int kpl=(k+1)*l;
 
-	IntPolynomiala* decomp = new_array1<IntPolynomiala>(kpl,N);
-	 LagrangeHalfCPolynomiala* decompFFT = new_array1<LagrangeHalfCPolynomiala>(kpl,N);
-	TLweSampleFFTa* accFFT= new TLweSampleFFTa(N);
-	TLweSample64* acc = new TLweSample64(N);
+        IntPolynomiala* decomp = new_array1<IntPolynomiala>(kpl,N);
+         LagrangeHalfCPolynomiala* decompFFT = new_array1<LagrangeHalfCPolynomiala>(kpl,N);
+        TLweSampleFFTa* accFFT= new TLweSampleFFTa(N);
+        TLweSample64* acc = new TLweSample64(N);
 
-    	for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialClear_lvl2(accFFT->a+q, env);
+        for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialClear_lvl2(accFFT->a+q, env);
 
-//	 TGswSampleFFTa* epsFFT= new TGswSampleFFTa(l,N);
+//       TGswSampleFFTa* epsFFT= new TGswSampleFFTa(l,N);
 
-// 	tLweSubTo(c1,c0, params2);//c1=c1-c0
-
-
- 
-	for (int q = 0; q <= k; ++q) 
-	{
-	LagrangeHalfCPolynomialSubTo_lvl2(c1->a+q,c0->a+q, env);//c1=c1-c0
-	TorusPolynomial64_fft_lvl2(acc->a+q,c1->a+q, env);
- 	}
+//      tLweSubTo(c1,c0, params2);//c1=c1-c0
 
 
 
-
-	 
-
-
-	tGsw64DecompH(decomp, acc, env);
-
-
-	for (int p = 0; p < kpl; ++p) 
-
-	IntPolynomial_ifft_lvl2(decompFFT+p,decomp+p, env);
+        for (int q = 0; q <= k; ++q)
+        {
+        LagrangeHalfCPolynomialSubTo_lvl2(c1->a+q,c0->a+q, env);//c1=c1-c0
+        TorusPolynomial64_fft_lvl2(acc->a+q,c1->a+q, env);
+        }
 
 
 
-  
+
+
+
+
+        tGsw64DecompH(decomp, acc, env);
+
+
+        for (int p = 0; p < kpl; ++p)
+
+        IntPolynomial_ifft_lvl2(decompFFT+p,decomp+p, env);
+
+
+
+
         // external product FFT
 
 
-       
 
 
-	 for (int p = 0; p < kpl; ++p)	
-  for (int q = 0; q <= k; ++q) 								LagrangeHalfCPolynomialAddMul_lvl2(accFFT->a+q, decompFFT+p, &eps->allsamples[p].a[q], env);
- 
- 
 
-	  for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialAddTo_lvl2(accFFT->a+q,c0->a+q, env); //c1=c1+c0
+         for (int p = 0; p < kpl; ++p)
+  for (int q = 0; q <= k; ++q)                                                          LagrangeHalfCPolynomialAddMul_lvl2(accFFT->a+q, decompFFT+p, &eps->allsamples[p].a[q], env);
 
 
-	for (int q = 0; q <= k; ++q)
-   	  for (int j = 0; j < N; ++j) result->a[q].values[j] = accFFT->a[q].values[j];
+
+          for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialAddTo_lvl2(accFFT->a+q,c0->a+q, env); //c1=c1+c0
 
 
-	delete_array1<IntPolynomiala>(decomp);
-	delete_array1<LagrangeHalfCPolynomiala>(decompFFT);
-	delete accFFT;
-	delete acc;
+        for (int q = 0; q <= k; ++q)
+          for (int j = 0; j < N; ++j) result->a[q].values[j] = accFFT->a[q].values[j];
+
+
+        delete_array1<IntPolynomiala>(decomp);
+        delete_array1<LagrangeHalfCPolynomiala>(decompFFT);
+        delete accFFT;
+        delete acc;
 
 }
 
-	void CMuxDecompFFT(TLweSample64* c0 ,const TGswSampleFFTa *eps, const  LagrangeHalfCPolynomiala* decompFFT, 		 const Globals* env){
-	 int32_t N= env->N;
-	 int32_t k= env->k;
-	 int32_t l=env->l;
-	 int32_t kpl= (k+1)*l;
+        void CMuxDecompFFT(TLweSample64* c0 ,const TGswSampleFFTa *eps, const  LagrangeHalfCPolynomiala* decompFFT,     const Globals* env){
+         int32_t N= env->N;
+         int32_t k= env->k;
+         int32_t l=env->l;
+         int32_t kpl= (k+1)*l;
 
-	TLweSampleFFTa* accFFTa= new TLweSampleFFTa(N);
-	TLweSample64 *c11 = new TLweSample64(N);
-	for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialClear_lvl2(accFFTa->a+q, env);
-	 for (int p = 0; p < kpl; ++p)
-	  for (int q = 0; q <= k; ++q) 		LagrangeHalfCPolynomialAddMul_lvl2(accFFTa->a+q, decompFFT+p, &eps->allsamples[p].a[q], env);
+        TLweSampleFFTa* accFFTa= new TLweSampleFFTa(N);
+        TLweSample64 *c11 = new TLweSample64(N);
+        for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialClear_lvl2(accFFTa->a+q, env);
+         for (int p = 0; p < kpl; ++p)
+          for (int q = 0; q <= k; ++q)          LagrangeHalfCPolynomialAddMul_lvl2(accFFTa->a+q, decompFFT+p, &eps->allsamples[p].a[q], env);
 
         for (int q = 0; q <= k; ++q) TorusPolynomial64_fft_lvl2(c11->a+q,accFFTa->a+q, env);
-	
-
-	for (int q = 0; q <= k; ++q)
-   	  for (int j = 0; j < N; ++j) c0->a[q].coefs[j] += c11->a[q].coefs[j];
 
 
-	delete accFFTa;
-	delete c11;
+        for (int q = 0; q <= k; ++q)
+          for (int j = 0; j < N; ++j) c0->a[q].coefs[j] += c11->a[q].coefs[j];
+
+
+        delete accFFTa;
+        delete c11;
 }
 
-	void CMuxDecompFFTa(TLweSampleFFTa *c0 ,const TGswSampleFFTa *eps, const  LagrangeHalfCPolynomiala* decompFFT, 		 const Globals* env){
-	 int32_t N= env->N;
-	 int32_t k= env->k;
-	 int32_t l=env->l;
-	 int32_t kpl= (k+1)*l;
+        void CMuxDecompFFTa(TLweSampleFFTa *c0 ,const TGswSampleFFTa *eps, const  LagrangeHalfCPolynomiala* decompFFT,  const Globals* env){
+         int32_t N= env->N;
+         int32_t k= env->k;
+         int32_t l=env->l;
+         int32_t kpl= (k+1)*l;
 
-	TLweSampleFFTa* accFFTa= new TLweSampleFFTa(N);
-	//TLweSampleFFTa *c11 = new TLweSampleFFTa(N);
-	for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialClear_lvl2(accFFTa->a+q, env);
+        TLweSampleFFTa* accFFTa= new TLweSampleFFTa(N);
+        //TLweSampleFFTa *c11 = new TLweSampleFFTa(N);
+        for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialClear_lvl2(accFFTa->a+q, env);
 
-	for (int p = 0; p < kpl; ++p)
-	  for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialAddMul_lvl2(accFFTa->a+q, decompFFT+p, &eps->allsamples[p].a[q], env);
-
-
-	for (int q = 0; q <= k; ++q) 
-
-	LagrangeHalfCPolynomialAddTo_lvl2(c0->a+q,accFFTa->a+q, env);
-	
-
-	delete accFFTa;
-
-	}
+        for (int p = 0; p < kpl; ++p)
+          for (int q = 0; q <= k; ++q) LagrangeHalfCPolynomialAddMul_lvl2(accFFTa->a+q, decompFFT+p, &eps->allsamples[p].a[q], env);
 
 
+        for (int q = 0; q <= k; ++q)
+
+        LagrangeHalfCPolynomialAddTo_lvl2(c0->a+q,accFFTa->a+q, env);
+
+
+        delete accFFTa;
+
+        }
 
 
 
@@ -808,32 +768,34 @@ void CMuxFFTdb(TLweSampleFFTa *result, const TGswSampleFFTa *eps, const Torus64 
 
 
 
-	void shift(TLweSample64 *result, int j,TLweSample64 *sample,int N){
+
+
+        void shift(TLweSample64 *result, int j,TLweSample64 *sample,int N){
 
 //int N = env->N;
 //int k=env->k;
 
 
-  	for (int i=0; i<N; i++){
-	  if (i+j<N){
+        for (int i=0; i<N; i++){
+          if (i+j<N){
   result->a[0].coefs[j+i] = sample->a[0].coefs[i];
    result->a[1].coefs[j+i] = sample->a[1].coefs[i];
-	  }
-	  else
-	   {
+          }
+          else
+           {
    result->a[0].coefs[(i+j)%N]= -sample->a[0].coefs[i];
    result->a[1].coefs[(i+j)%N] = -sample->a[1].coefs[i];
 
-            }	
+            }
 
-	
-   	 }
-	}
 
-	void tGsw64Encrypt(TGswSample64* cipher, const int mess, const double stdev, const Globals* env){
-	    const int l = env->l;
-    	    const int Bgbit = env->bgbit;
-	    const int k=env->k;
+         }
+        }
+
+        void tGsw64Encrypt(TGswSample64* cipher, const int mess, const double stdev, const Globals* env){
+            const int l = env->l;
+            const int Bgbit = env->bgbit;
+            const int k=env->k;
          for (int bloc = 0; bloc <= k; ++bloc) {
          for (int i = 0; i < l; ++i) {
             // encryption of 0
@@ -843,6 +805,26 @@ void CMuxFFTdb(TLweSampleFFTa *result, const TGswSampleFFTa *eps, const Torus64 
                                                 }
                                      }
           }
+
+
+    void tGsw64Encrypt_poly(TGswSample64* cipher, const IntPolynomiala* mess, const double stdev, const Globals* env) {
+    const int l = env->l;
+    const int Bgbit = env->bgbit;
+    const int k = env->k;
+
+    for (int bloc = 0; bloc <= k; ++bloc) {
+        for (int i = 0; i < l; ++i) {
+            // Step 1: 암호화된 0 생성
+            tLwe64EncryptZero(&cipher->samples[bloc][i], stdev, env);
+
+            // Step 2: message * gadget vector h[i] 추가
+            for (int j = 0; j < env->N; ++j) {
+                cipher->samples[bloc][i].a[bloc].coefs[j] += mess->coefs[j] * (UINT64_C(1) << (64 - (i + 1) * Bgbit));
+            }
+        }
+    }
+}
+
 
     void tGsw64Encrypt_poly_2(TGswSample64* cipher, const IntPolynomiala* mess, const double stdev, const Globals* env){
     const int N = env->N;
@@ -855,10 +837,10 @@ void CMuxFFTdb(TLweSampleFFTa *result, const TGswSampleFFTa *eps, const Torus64 
             // Step 1: 암호화된 0 생성
             tLwe64EncryptZero_debug(&cipher->samples[0][i], stdev, env);
             tLwe64EncryptZero_debug(&cipher->samples[1][i], stdev, env);
- 
+
 
             // Step 2: message * gadget vector h[i] 추가
-            for (int j = 0; j < N; ++j) { 
+            for (int j = 0; j < N; ++j) {
                 cipher->samples[0][i].a[0].coefs[j] += mess->coefs[j] * (UINT64_C(1) << (64 - (i + 1) * Bgbit));
                 cipher->samples[1][i].a[1].coefs[j] += mess->coefs[j] * (UINT64_C(1) << (64 - (i + 1) * Bgbit));
             }
@@ -866,45 +848,7 @@ void CMuxFFTdb(TLweSampleFFTa *result, const TGswSampleFFTa *eps, const Torus64 
     //}
 }
 
-    void tGsw64Encrypt_poly_3(TGswSample64* cipher, const IntPolynomiala* mess, const double stdev, const Globals* env){
-    const int N = env->N;
-    const int l = env->l;
-    const int Bgbit = env->bgbit;
-    const int k = env->k;
 
-    for (int bloc = 0; bloc <= k; ++bloc) {
-        for (int i = 0; i < l; ++i) {
-            // Step 1: 암호화된 0 생성
-            tLwe64EncryptZero_debug(&cipher->samples[bloc][i], stdev, env);
- 
-
-            // Step 2: message * gadget vector h[i] 추가
-            for (int j = 0; j < env->N; ++j) { 
-                cipher->samples[bloc][i].a[1].coefs[j] += mess->coefs[j] * (UINT64_C(1) << (64 - (i + 1) * Bgbit));
-            }
-        }
-    }
-}
-
-
-    void tGsw64Encrypt_poly(TGswSample64* cipher, const IntPolynomiala* mess, const double stdev, const Globals* env) {
-    const int l = env->l;
-    const int Bgbit = env->bgbit;
-    const int k = env->k;
-    
-    for (int bloc = 0; bloc <= k; ++bloc) {
-        for (int i = 0; i < l; ++i) {
-            // Step 1: 암호화된 0 생성
-            tLwe64EncryptZero_debug(&cipher->samples[bloc][i], stdev, env);
- 
-
-            // Step 2: message * gadget vector h[i] 추가
-            for (int j = 0; j < env->N; ++j) { 
-                cipher->samples[bloc][i].a[bloc].coefs[j] += mess->coefs[j] * (UINT64_C(1) << (64 - (i + 1) * Bgbit));
-            }
-        }
-    }
-}
 
 void tLweExtractLweSampleIndex64(LweSample64* result, const TLweSample64* x, const int32_t index, const Globals *env) {
     const int32_t N = env->N;
@@ -940,9 +884,8 @@ void packing_algorithm2(TLweSample64* rlweResult, const TGswSample64** ksk, cons
 
 
     // Sample Exraction
-    LweSample64* extract_result = new LweSample64(N);  // 🔹 extract_result 생성
+    LweSample64* extract_result = new LweSample64(N);  // extract_result 생성
     tLweExtractLweSampleIndex64(extract_result, rlweInput, index, env);
-    std::cout << "Sample Extraction Done" << std::endl;
 
 
     // a_poly 라는 이름의 다항식으로 복사
@@ -953,12 +896,10 @@ void packing_algorithm2(TLweSample64* rlweResult, const TGswSample64** ksk, cons
 
     // b_scalar 라는 이름의 변수로 복사
     Torus64 b_scalar = extract_result->a[N];  // a[N] 값을 b_scalar에 복사
-    std::cout << "a_poly, b_scalar done"<< std::endl;
 
     // decomposition of a scalars
     IntPolynomiala* decomp_a_scalars = new_array1<IntPolynomiala>(l, N);
     tGswTorus64PolynomialDecompH(decomp_a_scalars, a_poly, env);
-    std::cout << "a_poly decomposition done"<< std::endl;
 
     // temp_result_a와 temp_result_b 생성 (l개씩)
     Torus64Polynomial** temp_result_a = new Torus64Polynomial*[l];
@@ -981,7 +922,6 @@ void packing_algorithm2(TLweSample64* rlweResult, const TGswSample64** ksk, cons
             sum_result_b[i]->coefs[j] = 0;
         }
     }
-    std::cout << "temp_poly, sum_result generation done"<< std::endl;
 
     // for문 (N번 반복)
     for (int idx = 0; idx < N; ++idx) {
@@ -1010,7 +950,6 @@ void packing_algorithm2(TLweSample64* rlweResult, const TGswSample64** ksk, cons
             }
         }
     }
-    std::cout << "main for loop done"<< std::endl;
 
     // result의 a[0] 초기화
     for (int j = 0; j < N; ++j) {
@@ -1026,7 +965,6 @@ void packing_algorithm2(TLweSample64* rlweResult, const TGswSample64** ksk, cons
             rlweResult->a[1].coefs[j] -= sum_result_b[i]->coefs[j];
         }
     }
-    std::cout << "result done"<< std::endl;
 
     // result의 a[1]의 0번째 계수에 b_scalar 값 저장
     rlweResult->a[1].coefs[0] = b_scalar + rlweResult->a[1].coefs[0];
@@ -1090,66 +1028,40 @@ void KSKGen_RGSW_2_debug(TGswSample64* ksk, const IntPolynomiala* info_sk, const
     const int N = env->N;             // 다항식의 차수
     const double stdev = pow(2., -55); // 암호화에 사용되는 표준편차
 
-    // ✅ Step 1: gadget 벡터 설정 및 출력
     std::vector<uint64_t> gadget_vector(l);
-    std::cout << "🔹 gadget_vector: ";
     for (int i = 0; i < l; ++i) {
         gadget_vector[i] = (UINT64_C(1) << (64 - (i + 1) * Bgbit));
-        std::cout << gadget_vector[i] << " ";
     }
-    std::cout << std::endl;
 
-    // ✅ Step 2: info_sk 값 출력
-    std::cout << "🔹 info_sk Coefficients: ";
-    for (int i = 0; i < 5; ++i) {
-        std::cout << info_sk->coefs[i] << " ";
-    }
-    std::cout << std::endl;
 
     // Key Switching Key 생성
     for (int i = 0; i < l; ++i) {  // 각 분해 레벨에 대해
 
-        // ✅ Step 3: ksk 초기 상태 확인
-        std::cout << "🔹 Generating ksk->samples[0][" << i << "]..." << std::endl;
-
-        // 🔹 Step 1: 랜덤 노이즈 추가 (b 초기화)
+      
         for (int j = 0; j < N; ++j) {
-            ksk->samples[0][i].b->coefs[j] = 0; //random_gaussian64(0, stdev);
+            ksk->samples[0][i].b->coefs[j] = random_gaussian64(0, stdev);
         }
 
-        std::cout << "   ksk noise: e(X) ";
-        for (int j = 0; j < 5; j++) std::cout << ksk->samples[0][i].b->coefs[j] << " ";
-        std::cout << std::endl;
-
-        // 🔹 Step 2: 랜덤한 a 다항식 생성
+       
         for (int j = 0; j < N; ++j) {
             ksk->samples[0][i].a[0].coefs[j] = random_int64();
         }
 
-        // 🔹 Step 3: secret key (env->tlwekey)와 a 다항식 곱셈
+       
         torus64PolynomialMultAddKaratsuba_lvl2(ksk->samples[0][i].b, env->tlwekey, &ksk->samples[0][i].a[0], env);
-        std::cout << "  a(X)*s(X) ";
-        for (int j = 0; j < 5; j++) std::cout << ksk->samples[0][i].b->coefs[j] << " ";
-        std::cout << std::endl;
 
 
-        // 🔹 Step 4: gadget_vector를 사용하여 info_sk 값 추가 (a[1]에 적용)
         for (int j = 0; j < N; ++j) {
             ksk->samples[0][i].a[1].coefs[j] += info_sk->coefs[j] * gadget_vector[i];
-     
+
         }
 
-         std::cout << "   final ksk a[0] (random values): ";
-        for (int j = 0; j < 5; j++) std::cout << ksk->samples[0][i].a[0].coefs[j] << " ";
-        std::cout << std::endl;
-
-        std::cout << "   final ksk a[1] = a(X)*s(X) + info_s(X)*g + e(X) ";
-        for (int j = 0; j < 5; j++) std::cout << ksk->samples[0][i].a[1].coefs[j] << " ";
-        std::cout << std::endl;
+        
     }
 
-    //std::cout << "Key switching key generation completed." << std::endl;
+   
 }
+
 
 
 
@@ -1162,8 +1074,8 @@ void unpacking_algorithm4(TGswSample64* result, const TLweSample64** rlweInputs,
     for (int k = 0; k <= env->k; ++k) {
         for (int i = 0; i < l; ++i) {
             for (int j = 0; j < N; ++j) {
-               result->samples[k][i].a[0].coefs[j] = rlweInputs[i]->a[0].coefs[j];
-               result->samples[k][i].a[1].coefs[j] = rlweInputs[i]->a[1].coefs[j];
+                result->samples[k][i].a[0].coefs[j] = rlweInputs[i]->a[0].coefs[j];
+                result->samples[k][i].a[1].coefs[j] = rlweInputs[i]->a[1].coefs[j];
             }
         }
     }
@@ -1185,6 +1097,7 @@ void unpacking_algorithm4(TGswSample64* result, const TLweSample64** rlweInputs,
     //std::cout << "Unpacking algorithm4 completed." << std::endl;
 }
 
+/*
 void unpacking_algorithm5(TGswSample64* result, const TLweSample64** rlweInputs, const TGswSample64* convk, const Globals* env) {
     // 환경 변수 가져오기
     const int l = env->l;            // 분해 단계의 개수
@@ -1237,11 +1150,11 @@ void unpacking_algorithm5(TGswSample64* result, const TLweSample64** rlweInputs,
 
     std::cout << "Unpacking algorithm5 completed." << std::endl;
 }
-
+*/
 
 
 void Alg3_XPowerShift(TLweSample64* result, const TLweSample64* input, int shift, const Globals* env) {
-    const int N = env->N;  // 다항식 차수 (예: 1024)
+    const int N = env->N; 
 
     for (int j = 0; j < N; ++j) {
         int new_index = (j * shift) % N;  // X^N = -1 반영하여 새로운 지수 계산
@@ -1253,7 +1166,7 @@ void Alg3_XPowerShift(TLweSample64* result, const TLweSample64* input, int shift
 }
 
 void Alg3_XPowerShift_sk(IntPolynomiala* result, const IntPolynomiala* input, int shift, const Globals* env) {
-    const int N = env->N;  // 다항식 차수 (예: 1024)
+    const int N = env->N;
 
     for (int j = 0; j < N; ++j) {
         int new_index = (j * shift) % N;  // X^N = -1 반영하여 새로운 지수 계산
@@ -1264,7 +1177,7 @@ void Alg3_XPowerShift_sk(IntPolynomiala* result, const IntPolynomiala* input, in
 }
 
 void Alg3_XPowerShift_TorusPoly(Torus64Polynomial* result, const Torus64Polynomial* input, int shift, const Globals* env) {
-    const int N = env->N;  // 다항식 차수 (예: 1024)
+    const int N = env->N; 
 
     for (int j = 0; j < N; ++j) {
         int new_index = (j * shift) % N;  // X^N = -1 반영하여 새로운 지수 계산
@@ -1284,7 +1197,7 @@ void packing_algorithm3(TLweSample64* result, const TLweSample64* rlweInput, con
     TGswSampleFFTa** kskFFT = new TGswSampleFFTa*[logN];
     for (int i = 0; i < logN; ++i) {
         kskFFT[i] = new TGswSampleFFTa(l, N);
-        for (int p = 0; p < l; ++p) 
+        for (int p = 0; p < l; ++p)
             for (int q = 0; q <= k; ++q)
                 TorusPolynomial64_ifft_lvl2(&kskFFT[i]->allsamples[p].a[q], &ksk[i]->allsamples[p].a[q], env);
     }
@@ -1319,130 +1232,9 @@ void packing_algorithm3(TLweSample64* result, const TLweSample64* rlweInput, con
 
         // FFT 변환
         LagrangeHalfCPolynomiala* decompFFT_c_prime_a0 = new_array1<LagrangeHalfCPolynomiala>(l, N);
-        
-        for (int p = 0; p < l; ++p) {
-            IntPolynomial_ifft_lvl2(decompFFT_c_prime_a0 + p, decomp_c_prime_a0 + p, env); 
-        }
-
-        // External product 수행 (🔹 iter에 따른 kskFFT 선택)
-        TLweSampleFFTa* accFFT = new TLweSampleFFTa(N);
-
-        //accFFT initialization
-        for(int q=0; q<=k; ++q) LagrangeHalfCPolynomialClear_lvl2(accFFT->a+q, env);
-
-        for (int p = 0; p < l; ++p) {
-            LagrangeHalfCPolynomialAddMul_lvl2(accFFT->a, decompFFT_c_prime_a0 + p, &kskFFT[iter]->allsamples[p].a[0], env);
-            LagrangeHalfCPolynomialAddMul_lvl2(accFFT->a + 1, decompFFT_c_prime_a0 + p, &kskFFT[iter]->allsamples[p].a[1], env);
-        }
-
-        
-        // Convert back from FFT domain
-        TLweSample64* acc = new TLweSample64(N);
-        for (int q = 0; q <= k; ++q)
-            TorusPolynomial64_fft_lvl2(acc->a + q, accFFT->a + q, env);
-
-
-        // temp_result = 0 - acc for a, c_prime->b - acc for b
-        TLweSample64* temp_result = new TLweSample64(N);
-        for (int j = 0; j < N; ++j){
-            temp_result->a[0].coefs[j] = -acc->a[0].coefs[j];
-            temp_result->b->coefs[j] = c_prime_a1->coefs[j] - acc->b->coefs[j];
-        }
-
-
-        // result = temp_result + result
-        for (int i = 0; i <= k; ++i)
-            for (int j = 0; j < N; ++j)
-                result->a[i].coefs[j] += temp_result->a[i].coefs[j];
-
-
-
-        // 메모리 해제
-        delete_array1<IntPolynomiala>(decomp_c_prime_a0);
-        delete_array1<LagrangeHalfCPolynomiala>(decompFFT_c_prime_a0);
-
-        delete accFFT;
-        delete acc;
-        delete temp_result;
-        delete c_prime_a0;
-        delete c_prime_a1;
-        delete c_prime;
-    }
-
-    // 🔹 logN 개의 kskFFT 해제
-    for (int i = 0; i < logN; ++i) {
-        delete kskFFT[i];
-    }
-    delete[] kskFFT;
-
-}
-
-void packing_algorithm3_debug(TLweSample64* result, const TLweSample64* rlweInput, const TGswSample64** ksk, const Globals* env) {
-    const int k = env->k;
-    const int N = env->N;
-    const int l = env->l;
-    const int logN = log2(N);
-
-    std::cout << "🔹 Starting packing_algorithm3" << std::endl;
-
-    // 🔹 logN 개의 kskFFT 생성
-    TGswSampleFFTa** kskFFT = new TGswSampleFFTa*[logN];
-    for (int i = 0; i < logN; ++i) {
-        kskFFT[i] = new TGswSampleFFTa(l, N);
-        std::cout << "✅ kskFFT[" << i << "] allocated." << std::endl;
-        for (int p = 0; p < l; ++p) 
-            for (int q = 0; q <= k; ++q)
-                TorusPolynomial64_ifft_lvl2(&kskFFT[i]->allsamples[p].a[q], &ksk[i]->allsamples[p].a[q], env);
-    }
-
-    // 결과를 rlweInput으로 초기화
-    for (int i = 0; i <= k; ++i) {
-        for (int j = 0; j < N; ++j) {
-            result->a[i].coefs[j] = rlweInput->a[i].coefs[j];
-        }
-    }
-    std::cout << "✅ Result initialized with rlweInput" << std::endl;
-
-    for (int iter = 0; iter < logN; ++iter) {
-        int shift = (N / (1 << iter)) + 1;
-        std::cout << "🔹 Iteration: " << iter << ", Shift: " << shift << std::endl;
-
-        TLweSample64* c_prime = new TLweSample64(N);
-        Alg3_XPowerShift_modified(c_prime, result, shift, env);
-
-        // 🔹 Debug: c_prime 값 확인
-        std::cout << "✅ c_prime first 5 coefficients (a[0]): ";
-        for (int i = 0; i < 5; i++) std::cout << c_prime->a[0].coefs[i] << " ";
-        std::cout << std::endl;
-
-        // c_prime의 a[0], a[1]을 분리
-        Torus64Polynomial* c_prime_a0 = new Torus64Polynomial(N);
-        Torus64Polynomial* c_prime_a1 = new Torus64Polynomial(N);
-
-        for (int j = 0; j < N; ++j) {
-            c_prime_a0->coefs[j] = c_prime->a[0].coefs[j];
-            c_prime_a1->coefs[j] = c_prime->a[1].coefs[j];
-        }
-
-        // c_prime_a0, c_prime_a1을 decomp 형태로 변환
-        IntPolynomiala* decomp_c_prime_a0 = new_array1<IntPolynomiala>(l, N);
-        //IntPolynomiala* decomp_c_prime_a1 = new_array1<IntPolynomiala>(l, N);
-
-        tGswTorus64PolynomialDecompH(decomp_c_prime_a0, c_prime_a0, env);
-        //tGswTorus64PolynomialDecompH(decomp_c_prime_a1, c_prime_a0, env);
-
-        // 🔹 Debug: Decomposed values 확인
-        std::cout << "✅ Decomposed first 5 coefficients (c_prime_a0): ";
-        for (int i = 0; i < 5; i++) std::cout << decomp_c_prime_a0->coefs[i] << " ";
-        std::cout << std::endl;
-
-        // FFT 변환
-        LagrangeHalfCPolynomiala* decompFFT_c_prime_a0 = new_array1<LagrangeHalfCPolynomiala>(l, N);
-        //LagrangeHalfCPolynomiala* decompFFT_c_prime_a1 = new_array1<LagrangeHalfCPolynomiala>(l, N);
 
         for (int p = 0; p < l; ++p) {
             IntPolynomial_ifft_lvl2(decompFFT_c_prime_a0 + p, decomp_c_prime_a0 + p, env);
-            //IntPolynomial_ifft_lvl2(decompFFT_c_prime_a1 + p, decomp_c_prime_a1 + p, env);
         }
 
         // External product 수행 (🔹 iter에 따른 kskFFT 선택)
@@ -1456,16 +1248,11 @@ void packing_algorithm3_debug(TLweSample64* result, const TLweSample64* rlweInpu
             LagrangeHalfCPolynomialAddMul_lvl2(accFFT->a + 1, decompFFT_c_prime_a0 + p, &kskFFT[iter]->allsamples[p].a[1], env);
         }
 
-        
+
         // Convert back from FFT domain
         TLweSample64* acc = new TLweSample64(N);
         for (int q = 0; q <= k; ++q)
             TorusPolynomial64_fft_lvl2(acc->a + q, accFFT->a + q, env);
-
-        // 🔹 Debug: acc 변환 후 확인
-        std::cout << "✅ acc first 5 coefficients (a[0]): ";
-        for (int i = 0; i < 5; i++) std::cout << acc->a[0].coefs[i] << " ";
-        std::cout << std::endl;
 
 
         // temp_result = 0 - acc for a, c_prime->b - acc for b
@@ -1475,26 +1262,17 @@ void packing_algorithm3_debug(TLweSample64* result, const TLweSample64* rlweInpu
             temp_result->b->coefs[j] = c_prime_a1->coefs[j] - acc->b->coefs[j];
         }
 
-        // 🔹 Debug: temp_result 변환 후 확인
-        std::cout << "✅ temp_result first 5 coefficients (a[0]): ";
-        for (int i = 0; i < 5; i++) std::cout << temp_result->a[0].coefs[i] << " ";
-        std::cout << std::endl;
 
         // result = temp_result + result
         for (int i = 0; i <= k; ++i)
             for (int j = 0; j < N; ++j)
                 result->a[i].coefs[j] += temp_result->a[i].coefs[j];
 
-        // 🔹 Debug: Result 업데이트 후 확인
-        std::cout << "✅ Result after update first 5 coefficients: ";
-        for (int i = 0; i < 5; i++) std::cout << result->a[0].coefs[i] << " ";
-        std::cout << std::endl;
+
 
         // 메모리 해제
         delete_array1<IntPolynomiala>(decomp_c_prime_a0);
-        //delete_array1<IntPolynomiala>(decomp_c_prime_a1);
         delete_array1<LagrangeHalfCPolynomiala>(decompFFT_c_prime_a0);
-        //delete_array1<LagrangeHalfCPolynomiala>(decompFFT_c_prime_a1);
 
         delete accFFT;
         delete acc;
@@ -1510,7 +1288,6 @@ void packing_algorithm3_debug(TLweSample64* result, const TLweSample64* rlweInpu
     }
     delete[] kskFFT;
 
-    std::cout << "✅ Algorithm 3 packing completed successfully!" << std::endl;
 }
 
 
@@ -1530,5 +1307,5 @@ void left_shift_by_one_poly(IntPolynomiala *output, IntPolynomiala *input, int N
     for(int i=0; i<N; i++){
         output->coefs[i] = input->coefs[i+1];
     }
-   
+
 }
