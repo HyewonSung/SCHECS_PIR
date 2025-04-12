@@ -186,7 +186,7 @@ std::cout << "Approx. memory required: " << (db * sizeof(int64_t)) / (1024.0 * 1
     }
 
     // 데이터 초기화
-    for (uint32_t j = 0; j < db; j++)
+    for (uint64_t j = 0; j < db; j++)
         data->coefs[j] = (int64_t(1) << 56) * (17 * j * rand() % MM);
 
     std::cout << "data initialization done" << std::endl;
